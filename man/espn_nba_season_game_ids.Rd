@@ -8,21 +8,24 @@ espn_nba_season_game_ids(
   season,
   season_type = c("regular", "postseason", "all"),
   start_date = NULL,
-  end_date = NULL
+  end_date = NULL,
+  pause_sec = 0.2
 )
 }
 \arguments{
-\item{season}{Season year}
+\item{season}{Season year (the year the season ends, e.g. 2027 for 2026-27)}
 
 \item{season_type}{One of "regular", "postseason", or "all"}
 
-\item{start_date}{Optional season start date override}
+\item{start_date}{Optional start date (defaults to the season window)}
 
-\item{end_date}{Optional season end date override}
+\item{end_date}{Optional end date (defaults to the season window)}
+
+\item{pause_sec}{Seconds to wait between requests}
 }
 \value{
-A data frame of games with ids
+A data frame of completed games with ids
 }
 \description{
-Get ESPN NBA season game ids
+Completed games from [espn_nba_schedule()].
 }

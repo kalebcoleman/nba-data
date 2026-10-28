@@ -5,3 +5,8 @@
 ^data/raw$
 ^data/parsed$
 ^data/sql$
+^LICENSE\.md$
+^CITATION\.cff$
+^AGENTS\.md$
+^\.github$
+^\.lintr$

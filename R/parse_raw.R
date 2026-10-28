@@ -361,14 +361,18 @@ espn_nba_player_box_from_raw <- function(raw_summary) {
 #' @param season Season year used to filter summary files
 #' @param raw_dir Directory containing raw JSON
 #' @param progress Show a progress bar while parsing
+#' @param files Optional vector of file paths to parse instead of the whole
+#'   season directory
 #' @return Named list with games, team_box, player_box, and file_index
 #' @export
-espn_nba_parse_raw_dir <- function(season, raw_dir = "data/raw", progress = TRUE) {
-  season <- as.character(season)
-  pattern <- sprintf("^summary_%s_.*\\.json$", season)
-  season_dir <- file.path(raw_dir, season)
-  source_dir <- if (dir.exists(season_dir)) season_dir else raw_dir
-  files <- list.files(source_dir, pattern = pattern, full.names = TRUE)
+espn_nba_parse_raw_dir <- function(season, raw_dir = "data/raw", progress = TRUE, files = NULL) {
+  if (is.null(files)) {
+    season <- as.character(season)
+    pattern <- sprintf("^summary_%s_.*\\.json$", season)
+    season_dir <- file.path(raw_dir, season)
+    source_dir <- if (dir.exists(season_dir)) season_dir else raw_dir
+    files <- list.files(source_dir, pattern = pattern, full.names = TRUE)
+  }
   if (length(files) == 0) {
     return(list(
       games = .espn_nba_empty_table("games"),

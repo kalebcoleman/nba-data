@@ -51,9 +51,17 @@ check_status <- function(res) {
 }
 
 
+.espn_nba_editorial_fields <- c("news", "article", "videos")
+
 save_raw_json <- function(raw, endpoint, key, dir = "data/raw") {
   if (is.null(raw)) {
     return(invisible(NULL))
+  }
+
+  # Editorial content (news recaps, articles, video links) is not used by the
+  # parsers and is not ours to store, so drop it before writing.
+  if (is.list(raw)) {
+    raw[intersect(names(raw), .espn_nba_editorial_fields)] <- NULL
   }
 
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
@@ -608,12 +616,28 @@ helper_espn_nba_player_box <- function(resp) {
           team_score = ifelse(team_id == home_away_1_team_id, home_away_1_team_score, home_away_2_team_score),
           opponent_team_id = ifelse(team_id == home_away_1_team_id, home_away_2_team_id, home_away_1_team_id),
           opponent_team_name = ifelse(team_id == home_away_1_team_id, home_away_2_team_name, home_away_1_team_name),
-          opponent_team_location = ifelse(team_id == home_away_1_team_id, home_away_2_team_location, home_away_1_team_location),
-          opponent_team_display_name = ifelse(team_id == home_away_1_team_id, home_away_2_team_display_name, home_away_1_team_display_name),
-          opponent_team_abbreviation = ifelse(team_id == home_away_1_team_id, home_away_2_team_abbreviation, home_away_1_team_abbreviation),
+          opponent_team_location = ifelse(
+            team_id == home_away_1_team_id,
+            home_away_2_team_location,
+            home_away_1_team_location
+          ),
+          opponent_team_display_name = ifelse(
+            team_id == home_away_1_team_id,
+            home_away_2_team_display_name,
+            home_away_1_team_display_name
+          ),
+          opponent_team_abbreviation = ifelse(
+            team_id == home_away_1_team_id,
+            home_away_2_team_abbreviation,
+            home_away_1_team_abbreviation
+          ),
           opponent_team_logo = ifelse(team_id == home_away_1_team_id, home_away_2_team_logos, home_away_1_team_logos),
           opponent_team_color = ifelse(team_id == home_away_1_team_id, home_away_2_team_color, home_away_1_team_color),
-          opponent_team_alternate_color = ifelse(team_id == home_away_1_team_id, home_away_2_team_alternate_color, home_away_1_team_alternate_color),
+          opponent_team_alternate_color = ifelse(
+            team_id == home_away_1_team_id,
+            home_away_2_team_alternate_color,
+            home_away_1_team_alternate_color
+          ),
           opponent_team_score = ifelse(team_id == home_away_1_team_id, home_away_2_team_score, home_away_1_team_score)
         ) %>%
         dplyr::arrange(home_away)

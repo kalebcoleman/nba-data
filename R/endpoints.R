@@ -164,6 +164,8 @@ espn_nba_scoreboard <- function(dates, save_raw = FALSE, raw_dir = "data/raw") {
     game_date_time = game_date_time,
     home_team_id = as.integer(home$team$id),
     away_team_id = as.integer(away$team$id),
+    home_team_abbreviation = .espn_nba_null_chr(home$team$abbreviation),
+    away_team_abbreviation = .espn_nba_null_chr(away$team$abbreviation),
     status_completed = status_completed,
     status_name = status_name,
     status_state = status_state,
@@ -207,18 +209,30 @@ espn_nba_scoreboard <- function(dates, save_raw = FALSE, raw_dir = "data/raw") {
   seq.Date(start_date, end_date, by = "day")
 }
 
-#' Get ESPN NBA season game ids
+.espn_nba_null_chr <- function(x) {
+  if (is.null(x)) NA_character_ else as.character(x)
+}
+
+#' Get the ESPN NBA schedule for a season
 #'
-#' @param season Season year
+#' Returns every game in the date window, including games that have not been
+#' played yet (`status_state == "pre"`). ESPN's scoreboard endpoint only
+#' accepts single dates, so this makes one request per day.
+#'
+#' @param season Season year (the year the season ends, e.g. 2027 for 2026-27)
 #' @param season_type One of "regular", "postseason", or "all"
-#' @param start_date Optional season start date override
-#' @param end_date Optional season end date override
-#' @return A data frame of games with ids
+#' @param start_date Optional start date (defaults to the season window)
+#' @param end_date Optional end date (defaults to the season window)
+#' @param pause_sec Seconds to wait between requests
+#' @param scoreboard_fn Function that returns games for one YYYYMMDD date
+#' @return A data frame with one row per game
 #' @export
-espn_nba_season_game_ids <- function(season,
-                                     season_type = c("regular", "postseason", "all"),
-                                     start_date = NULL,
-                                     end_date = NULL) {
+espn_nba_schedule <- function(season,
+                              season_type = c("regular", "postseason", "all"),
+                              start_date = NULL,
+                              end_date = NULL,
+                              pause_sec = 0.2,
+                              scoreboard_fn = espn_nba_scoreboard) {
   season_type <- match.arg(season_type)
 
   dates <- .espn_nba_season_date_range(season, season_type, start_date, end_date)
@@ -227,7 +241,9 @@ espn_nba_season_game_ids <- function(season,
   }
 
   games <- lapply(dates, function(x) {
-    espn_nba_scoreboard(format(x, "%Y%m%d"))
+    out <- scoreboard_fn(format(x, "%Y%m%d"))
+    if (pause_sec > 0) Sys.sleep(pause_sec)
+    out
   })
   games <- dplyr::bind_rows(games)
 
@@ -235,15 +251,34 @@ espn_nba_season_game_ids <- function(season,
     return(games)
   }
 
-  games <- games[games$status_completed %in% TRUE, , drop = FALSE]
-
+  games <- games[games$season == as.integer(season), , drop = FALSE]
   if (season_type == "regular") {
     games <- games[games$season_type == 2, , drop = FALSE]
   } else if (season_type == "postseason") {
     games <- games[games$season_type == 3, , drop = FALSE]
   }
 
-  games[!duplicated(games$game_id), , drop = FALSE]
+  games <- games[!duplicated(games$game_id), , drop = FALSE]
+  games[order(games$game_date_time, games$game_id), , drop = FALSE]
+}
+
+#' Get ESPN NBA season game ids
+#'
+#' Completed games from [espn_nba_schedule()].
+#'
+#' @inheritParams espn_nba_schedule
+#' @return A data frame of completed games with ids
+#' @export
+espn_nba_season_game_ids <- function(season,
+                                     season_type = c("regular", "postseason", "all"),
+                                     start_date = NULL,
+                                     end_date = NULL,
+                                     pause_sec = 0.2) {
+  games <- espn_nba_schedule(season, season_type, start_date, end_date, pause_sec = pause_sec)
+  if (nrow(games) == 0) {
+    return(games)
+  }
+  games[games$status_completed %in% TRUE, , drop = FALSE]
 }
 
 

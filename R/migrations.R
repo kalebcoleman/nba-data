@@ -49,32 +49,27 @@ nba_db_set_version <- function(con, version, note = NULL) {
 nba_db_apply_migrations <- function(con, from, to) {
   from <- as.integer(from)
   to <- as.integer(to)
-  if (from < 1 && to >= 1) {
-    .nba_db_create_tables_v1(con)
-    .nba_db_create_indices(con)
-    nba_db_set_version(con, 1L, note = "init")
-    from <- 1L
-  }
+  # Versions 1-4 were created during initial development and all add columns
+  # from the current schema, so any older database ends at the v4 schema.
+  # New migrations should list the exact columns they add.
+  steps <- list(
+    list(version = 1L, fn = .nba_db_create_tables_v1, note = "init"),
+    list(version = 2L, fn = .nba_db_migrate_to_v2, note = "add missing columns"),
+    list(version = 3L, fn = .nba_db_migrate_to_v3, note = "expand team_box schema"),
+    list(version = 4L, fn = .nba_db_migrate_to_v4, note = "add lead change metrics to team_box"),
+    list(version = 5L, fn = .nba_db_migrate_to_v5, note = "add schedule table")
+  )
 
-  if (from < 2 && to >= 2) {
-    .nba_db_migrate_to_v2(con)
-    .nba_db_create_indices(con)
-    nba_db_set_version(con, 2L, note = "add missing columns")
-    from <- 2L
-  }
-
-  if (from < 3 && to >= 3) {
-    .nba_db_migrate_to_v3(con)
-    .nba_db_create_indices(con)
-    nba_db_set_version(con, 3L, note = "expand team_box schema")
-    from <- 3L
-  }
-
-  if (from < 4 && to >= 4) {
-    .nba_db_migrate_to_v4(con)
-    .nba_db_create_indices(con)
-    nba_db_set_version(con, 4L, note = "add lead change metrics to team_box")
-    from <- 4L
+  for (step in steps) {
+    if (from < step$version && to >= step$version) {
+      # Each step either applies fully or not at all.
+      DBI::dbWithTransaction(con, {
+        step$fn(con)
+        .nba_db_create_indices(con)
+        nba_db_set_version(con, step$version, note = step$note)
+      })
+      from <- step$version
+    }
   }
 
   if (from < to) {
@@ -101,6 +96,29 @@ nba_db_apply_migrations <- function(con, from, to) {
 .nba_db_migrate_to_v4 <- function(con) {
   schema <- .espn_nba_schema()
   .nba_db_add_missing_columns(con, "team_box", schema$team_box)
+  invisible(TRUE)
+}
+
+# v5: schedule of all games, including ones not yet played. Columns are listed
+# explicitly so this migration does not change if the schema map changes.
+.nba_db_migrate_to_v5 <- function(con) {
+  DBI::dbExecute(con, "
+    CREATE TABLE IF NOT EXISTS schedule (
+      game_id INTEGER NOT NULL PRIMARY KEY,
+      season INTEGER,
+      season_type INTEGER,
+      game_date TEXT,
+      game_date_time TEXT,
+      home_team_id INTEGER,
+      away_team_id INTEGER,
+      home_team_abbreviation TEXT,
+      away_team_abbreviation TEXT,
+      status_completed INTEGER,
+      status_name TEXT,
+      status_state TEXT,
+      updated_at TEXT
+    )")
+  DBI::dbExecute(con, "CREATE INDEX IF NOT EXISTS idx_schedule_date ON schedule(game_date)")
   invisible(TRUE)
 }
 
