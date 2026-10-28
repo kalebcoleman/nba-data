@@ -27,6 +27,7 @@ testthat::test_that("parse_raw_dir filters by season and returns tables", {
 
   out <- espn_nba_parse_raw_dir(2023, raw_dir = raw_dir, progress = FALSE)
   testthat::expect_true(all(c("games", "team_box", "player_box", "file_index") %in% names(out)))
-  testthat::expect_true(all(out$file_index$file_path %in% list.files(season_dir, pattern = "summary_2023_", full.names = TRUE)))
+  expected_files <- list.files(season_dir, pattern = "summary_2023_", full.names = TRUE)
+  testthat::expect_true(all(out$file_index$file_path %in% expected_files))
   testthat::expect_equal(nrow(out$games), 1)
 })
