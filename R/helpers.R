@@ -51,9 +51,17 @@ check_status <- function(res) {
 }
 
 
+.espn_nba_editorial_fields <- c("news", "article", "videos")
+
 save_raw_json <- function(raw, endpoint, key, dir = "data/raw") {
   if (is.null(raw)) {
     return(invisible(NULL))
+  }
+
+  # Editorial content (news recaps, articles, video links) is not used by the
+  # parsers and is not ours to store, so drop it before writing.
+  if (is.list(raw)) {
+    raw[intersect(names(raw), .espn_nba_editorial_fields)] <- NULL
   }
 
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
