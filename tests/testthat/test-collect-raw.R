@@ -37,7 +37,8 @@ testthat::test_that("collect_raw_season skips existing files and logs failures",
     overwrite = FALSE,
     progress = FALSE,
     quiet = TRUE,
-    fetch_save_fn = fetch_save_fn
+    fetch_save_fn = fetch_save_fn,
+    pause_sec = 0
   )
 
   testthat::expect_equal(nrow(out), 3)

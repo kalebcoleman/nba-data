@@ -23,7 +23,7 @@ For a given `season` and `season_type`, the pipeline can:
 - [x] Raw JSON saved one file per game.
 - [x] Scraping is idempotent (skip if file exists unless `overwrite = TRUE`).
 - [x] Robust HTTP handling (retries, backoff).
-- [ ] Configurable rate limiting (`pause_sec`).
+- [x] Configurable rate limiting (`pause_sec`).
 - [x] Phase A tests (naming helpers, safe summary).
 
 ### Phase B - Inventory & Completeness (Manifest)

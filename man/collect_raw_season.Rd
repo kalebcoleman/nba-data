@@ -15,7 +15,8 @@ collect_raw_season(
   fetch_save_fn = function(game_id, raw_dir, file_path) {
     
     espn_nba_summary_raw_safe(game_id, save_raw = TRUE, raw_dir = raw_dir)
- }
+ },
+  pause_sec = 0.5
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ collect_raw_season(
 \item{game_ids}{Optional integer vector of game_ids to collect}
 
 \item{fetch_save_fn}{Function that fetches and saves a summary by game_id}
+
+\item{pause_sec}{Seconds to wait after each request, to limit load on ESPN}
 }
 \value{
 A tibble of collection results

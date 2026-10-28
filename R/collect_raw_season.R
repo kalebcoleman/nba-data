@@ -8,6 +8,7 @@
 #' @param quiet Suppress progress messages
 #' @param game_ids Optional integer vector of game_ids to collect
 #' @param fetch_save_fn Function that fetches and saves a summary by game_id
+#' @param pause_sec Seconds to wait after each request, to limit load on ESPN
 #' @return A tibble of collection results
 #' @export
 collect_raw_season <- function(season,
@@ -19,7 +20,8 @@ collect_raw_season <- function(season,
                                game_ids = NULL,
                                fetch_save_fn = function(game_id, raw_dir, file_path) {
                                  espn_nba_summary_raw_safe(game_id, save_raw = TRUE, raw_dir = raw_dir)
-                               }) {
+                               },
+                               pause_sec = 0.5) {
   season_type <- match.arg(season_type)
   season <- as.integer(season)
   season_dir <- if (basename(raw_dir) == as.character(season)) raw_dir else file.path(raw_dir, season)
@@ -89,6 +91,7 @@ collect_raw_season <- function(season,
         fetch_save_fn(game_id = game_id, raw_dir = season_dir, file_path = path),
         error = function(e) list(error = conditionMessage(e))
       )
+      if (pause_sec > 0) Sys.sleep(pause_sec)
       if (is.list(fetch_out) && "error" %in% names(fetch_out) && !is.null(fetch_out$error)) {
         status <- "failed"
         error_msg <- as.character(fetch_out$error)
@@ -140,13 +143,15 @@ collect_raw_season <- function(season,
 #' @param raw_dir Directory to store raw JSON
 #' @param overwrite Overwrite existing raw files
 #' @param progress Show a progress bar while collecting
+#' @param pause_sec Seconds to wait after each request
 #' @return A list with per-season results and a combined tibble
 #' @export
 collect_raw_seasons <- function(seasons,
                                 season_type = c("regular", "postseason"),
                                 raw_dir = "data/raw",
                                 overwrite = FALSE,
-                                progress = TRUE) {
+                                progress = TRUE,
+                                pause_sec = 0.5) {
   season_type <- match.arg(season_type)
   seasons <- as.integer(seasons)
 
@@ -156,7 +161,8 @@ collect_raw_seasons <- function(seasons,
       season_type = season_type,
       raw_dir = raw_dir,
       overwrite = overwrite,
-      progress = progress
+      progress = progress,
+      pause_sec = pause_sec
     )
   })
   names(results) <- as.character(seasons)
