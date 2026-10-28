@@ -21,6 +21,10 @@ jobs:
 
       - uses: r-lib/actions/setup-renv@v2
 
+      # Development tools are not package dependencies, so they are not in renv.lock.
+      - name: Install check tools
+        run: Rscript -e 'renv::install(c("lintr", "devtools", "rcmdcheck"))'
+
       - name: Lint
         run: |
           lints <- lintr::lint_package()
