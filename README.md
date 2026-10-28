@@ -83,3 +83,15 @@ NBDATA_LIVE=true Rscript -e "testthat::test_file('tests/testthat/test-integratio
 
 - Parsed tables: `games`, `team_box`, `player_box`, and `betting_*`.
 - Raw JSON is the source of truth; parsed tables are the contract.
+
+## Data and terms of use
+
+This repository contains code only. Raw JSON, parsed tables, and the SQLite
+database are not committed; rebuild them locally with `collect_parse_store()`.
+The coverage manifests in `data/raw/<season>/` are kept so you can see which
+games were collected.
+
+The data comes from ESPN's public site API (`site.api.espn.com`). That API is
+undocumented and not licensed for redistribution, so treat any data you collect
+as personal, non-commercial research data and do not republish it. The collector
+drops editorial content (`news`, `article`, `videos`) before writing raw files.

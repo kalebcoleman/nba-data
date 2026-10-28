@@ -4,3 +4,9 @@
 .Ruserdata
 .DS_Store
 **/.DS_Store
+
+# Data is rebuilt locally (see README); not redistributed
+data/raw/**/*.json
+data/parsed/
+data/sql/
+tests/testthat/_problems/
