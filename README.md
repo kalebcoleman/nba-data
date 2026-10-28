@@ -42,7 +42,8 @@ flowchart LR
   C --> E[parse: games, team_box, player_box, betting]
   E --> F{validate}
   F --> G[(RDS / CSV)]
-  F --> H[(SQLite, schema v4)]
+  F --> H[(SQLite, schema v5)]
+  A --> S[(schedule, incl. upcoming games)]
 ```
 
 1. **Collect.** `collect_raw_season()` gets the season's game IDs from the
@@ -82,7 +83,21 @@ On Ubuntu, the packages need `libcurl4-openssl-dev`, `libssl-dev`,
 
 ## Usage
 
-Collect, parse, validate, and store one season:
+Keep a database current during a season (run daily; only new games and the
+last few days are fetched):
+
+```r
+nba_update()                         # current season, data/sql/nbadata.sqlite
+nba_schedule(2027, upcoming_only = TRUE)
+nba_team_box(2027)                   # same column names as hoopR::load_nba_team_box()
+```
+
+`nba_update()` refreshes the schedule from a few days before the last
+completed game through a week ahead, collects any completed games not yet
+stored, and refetches the last three days to pick up ESPN's post-game stat
+corrections. On the first run for a season it scans from the season start.
+
+Collect, parse, validate, and store a full past season:
 
 ```r
 out <- collect_parse_store(
@@ -135,7 +150,7 @@ snapshot test fails if the schema changes without a version bump.
 ## Tests
 
 ```r
-devtools::test()    # 115 tests; 1 live-API test skipped by default
+devtools::test()    # 134 tests; 1 live-API test skipped by default
 devtools::check()   # 0 errors, 0 warnings, 0 notes
 lintr::lint_package()
 ```
@@ -155,7 +170,12 @@ GitHub Actions runs lint and `R CMD check` on every push and pull request.
   an error.
 - Schema versions 1-4 were written during initial development, and each adds
   columns from the current schema, so an old database always ends at the v4
-  schema. New migrations should list the columns they add.
+  schema. Version 5 (the `schedule` table) and later list their columns
+  explicitly.
+- `collect_parse_store()` skips collection when any raw file for the season
+  exists, so it is for completed seasons. Use `nba_update()` during a season.
+- ESPN's scoreboard endpoint takes one date per request, so a full-season
+  schedule scan is about 190 requests.
 - `player_box.minutes` is stored as text.
 - Postseason collection is supported but has not been run or checked.
 

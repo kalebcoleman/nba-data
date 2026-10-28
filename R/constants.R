@@ -1,3 +1,3 @@
 # Internal constants
 
-NBA_SCHEMA_VERSION <- 4L
+NBA_SCHEMA_VERSION <- 5L
