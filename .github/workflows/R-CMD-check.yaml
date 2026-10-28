@@ -23,7 +23,7 @@ jobs:
 
       # Development tools are not package dependencies, so they are not in renv.lock.
       - name: Install check tools
-        run: Rscript -e 'renv::install(c("lintr", "devtools", "rcmdcheck"))'
+        run: Rscript -e 'renv::install(c("lintr", "rcmdcheck"))'
 
       - name: Lint
         run: |
@@ -33,5 +33,5 @@ jobs:
         shell: Rscript {0}
 
       - name: R CMD check
-        run: devtools::check(args = c("--no-manual", "--as-cran"), error_on = "warning")
+        run: rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning")
         shell: Rscript {0}
