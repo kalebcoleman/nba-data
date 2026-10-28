@@ -136,3 +136,20 @@ testthat::test_that("upsert writes non-empty team_box and player_box", {
   counts <- DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM player_box")
   testthat::expect_equal(counts$n[[1]], nrow(player_box))
 })
+
+testthat::test_that("a failed migration step rolls back and keeps the old version", {
+  db_path <- file.path(tempdir(), paste0("nba-mig-fail-", Sys.getpid(), ".sqlite"))
+  unlink(db_path)
+  con <- nba_db_connect(db = db_path, drv = "sqlite")
+  on.exit(nba_db_disconnect(con), add = TRUE)
+
+  # team_box and player_box are missing, so the v2 step fails partway through.
+  NBAData:::.nba_db_create_meta_tables(con)
+  DBI::dbExecute(con, "CREATE TABLE games (game_id INTEGER PRIMARY KEY)")
+  nba_db_set_version(con, 1L, note = "test v1")
+
+  testthat::expect_error(nba_db_init(con, target_version = NBA_SCHEMA_VERSION))
+  testthat::expect_equal(nba_db_get_version(con), 1L)
+  games_cols <- DBI::dbGetQuery(con, "PRAGMA table_info(games)")$name
+  testthat::expect_equal(games_cols, "game_id")
+})
