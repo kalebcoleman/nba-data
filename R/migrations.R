@@ -56,7 +56,8 @@ nba_db_apply_migrations <- function(con, from, to) {
     list(version = 1L, fn = .nba_db_create_tables_v1, note = "init"),
     list(version = 2L, fn = .nba_db_migrate_to_v2, note = "add missing columns"),
     list(version = 3L, fn = .nba_db_migrate_to_v3, note = "expand team_box schema"),
-    list(version = 4L, fn = .nba_db_migrate_to_v4, note = "add lead change metrics to team_box")
+    list(version = 4L, fn = .nba_db_migrate_to_v4, note = "add lead change metrics to team_box"),
+    list(version = 5L, fn = .nba_db_migrate_to_v5, note = "add schedule table")
   )
 
   for (step in steps) {
@@ -95,6 +96,29 @@ nba_db_apply_migrations <- function(con, from, to) {
 .nba_db_migrate_to_v4 <- function(con) {
   schema <- .espn_nba_schema()
   .nba_db_add_missing_columns(con, "team_box", schema$team_box)
+  invisible(TRUE)
+}
+
+# v5: schedule of all games, including ones not yet played. Columns are listed
+# explicitly so this migration does not change if the schema map changes.
+.nba_db_migrate_to_v5 <- function(con) {
+  DBI::dbExecute(con, "
+    CREATE TABLE IF NOT EXISTS schedule (
+      game_id INTEGER NOT NULL PRIMARY KEY,
+      season INTEGER,
+      season_type INTEGER,
+      game_date TEXT,
+      game_date_time TEXT,
+      home_team_id INTEGER,
+      away_team_id INTEGER,
+      home_team_abbreviation TEXT,
+      away_team_abbreviation TEXT,
+      status_completed INTEGER,
+      status_name TEXT,
+      status_state TEXT,
+      updated_at TEXT
+    )")
+  DBI::dbExecute(con, "CREATE INDEX IF NOT EXISTS idx_schedule_date ON schedule(game_date)")
   invisible(TRUE)
 }
 

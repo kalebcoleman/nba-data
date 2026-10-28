@@ -1,6 +1,6 @@
 # schema changes come with a version bump
 
-    list(version = 4L, schema = list(games = c(game_id = "integer", 
+    list(version = 5L, schema = list(games = c(game_id = "integer", 
     season = "integer", season_type = "integer", game_date = "date", 
     game_date_time = "posixct", status_completed = "logical", status_name = "character", 
     status_state = "character", home_team_id = "integer", away_team_id = "integer", 

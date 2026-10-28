@@ -9,6 +9,8 @@
 #' @param game_ids Optional integer vector of game_ids to collect
 #' @param fetch_save_fn Function that fetches and saves a summary by game_id
 #' @param pause_sec Seconds to wait after each request, to limit load on ESPN
+#' @param games Optional data frame of completed games (from
+#'   [espn_nba_season_game_ids()]); skips the schedule lookup when supplied
 #' @return A tibble of collection results
 #' @export
 collect_raw_season <- function(season,
@@ -21,12 +23,15 @@ collect_raw_season <- function(season,
                                fetch_save_fn = function(game_id, raw_dir, file_path) {
                                  espn_nba_summary_raw_safe(game_id, save_raw = TRUE, raw_dir = raw_dir)
                                },
-                               pause_sec = 0.5) {
+                               pause_sec = 0.5,
+                               games = NULL) {
   season_type <- match.arg(season_type)
   season <- as.integer(season)
   season_dir <- if (basename(raw_dir) == as.character(season)) raw_dir else file.path(raw_dir, season)
 
-  games <- espn_nba_season_game_ids(season = season, season_type = season_type)
+  if (is.null(games)) {
+    games <- espn_nba_season_game_ids(season = season, season_type = season_type)
+  }
   if (!is.null(game_ids) && length(game_ids) > 0 && nrow(games) > 0) {
     games <- dplyr::filter(games, game_id %in% as.integer(game_ids))
   }

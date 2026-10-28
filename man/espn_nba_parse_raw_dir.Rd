@@ -4,7 +4,12 @@
 \alias{espn_nba_parse_raw_dir}
 \title{Parse raw summary files for a season}
 \usage{
-espn_nba_parse_raw_dir(season, raw_dir = "data/raw", progress = TRUE)
+espn_nba_parse_raw_dir(
+  season,
+  raw_dir = "data/raw",
+  progress = TRUE,
+  files = NULL
+)
 }
 \arguments{
 \item{season}{Season year used to filter summary files}
@@ -12,6 +17,9 @@ espn_nba_parse_raw_dir(season, raw_dir = "data/raw", progress = TRUE)
 \item{raw_dir}{Directory containing raw JSON}
 
 \item{progress}{Show a progress bar while parsing}
+
+\item{files}{Optional vector of file paths to parse instead of the whole
+season directory}
 }
 \value{
 Named list with games, team_box, player_box, and file_index
