@@ -18,17 +18,17 @@ validate_parsed_tables <- function(tables,
 
   completed_ids <- unique(games$game_id)
   if (isTRUE(require_completed_only) && "status_completed" %in% names(games)) {
-    completed_ids <- unique(games$game_id[games$status_completed %in% TRUE])
+    played <- games$status_completed %in% TRUE
+    # ESPN marks some postponed games as completed with a 0-0 score.
+    if ("status_name" %in% names(games)) {
+      played <- played & !games$status_name %in% .espn_nba_unplayed_status
+    }
+    completed_ids <- unique(games$game_id[played])
   }
   completed_ids <- suppressWarnings(as.integer(completed_ids))
   completed_ids <- completed_ids[!is.na(completed_ids) & completed_ids > 0]
 
-  issues <- tibble::tibble(
-    issue = character(),
-    game_id = integer(),
-    detail = character(),
-    count = integer()
-  )
+  issues <- .espn_nba_empty_issues()
 
   if (length(completed_ids) > 0) {
     team_counts <- dplyr::count(team_box, game_id, name = "team_rows")
@@ -103,6 +103,11 @@ validate_parsed_tables <- function(tables,
     }
   }
 
+  issues$severity <- "error"
+  issues <- dplyr::bind_rows(
+    issues,
+    .espn_nba_value_issues(games, team_box, player_box, completed_ids)
+  )
   issues <- dplyr::filter(issues, !is.na(game_id))
 
   missingness <- list(
@@ -113,19 +118,15 @@ validate_parsed_tables <- function(tables,
 
   samples <- .espn_nba_sample_games(games)
 
-  ok <- nrow(issues) == 0
+  value_issues <- dplyr::filter(issues, severity == "warning")
+  if (nrow(value_issues) > 0) {
+    warning(.espn_nba_issue_message("Parsed table value checks found issues", value_issues), call. = FALSE)
+  }
+
+  errors <- dplyr::filter(issues, severity == "error")
+  ok <- nrow(errors) == 0
   if (!ok) {
-    issue_counts <- dplyr::count(issues, issue, name = "n")
-    summary <- paste(
-      paste0(issue_counts$issue, "=", issue_counts$n),
-      collapse = ", "
-    )
-    sample_rows <- utils::head(issues, 5)
-    sample_text <- paste(
-      sprintf("%s game_id=%s count=%s", sample_rows$issue, sample_rows$game_id, sample_rows$count),
-      collapse = "; "
-    )
-    msg <- sprintf("Parsed table validation failed: %s. Sample: %s", summary, sample_text)
+    msg <- .espn_nba_issue_message("Parsed table validation failed", errors)
 
     if (isTRUE(warn_only)) {
       warning(msg, call. = FALSE)
@@ -140,6 +141,131 @@ validate_parsed_tables <- function(tables,
     missingness = missingness,
     samples = samples
   )
+}
+
+.espn_nba_unplayed_status <- c("STATUS_POSTPONED", "STATUS_CANCELED", "STATUS_SUSPENDED")
+
+.espn_nba_empty_issues <- function() {
+  tibble::tibble(
+    issue = character(),
+    game_id = integer(),
+    detail = character(),
+    count = integer()
+  )
+}
+
+.espn_nba_issue_message <- function(prefix, issues) {
+  issue_counts <- dplyr::count(issues, issue, name = "n")
+  summary <- paste(
+    paste0(issue_counts$issue, "=", issue_counts$n),
+    collapse = ", "
+  )
+  sample_rows <- utils::head(issues, 5)
+  sample_text <- paste(
+    sprintf("%s game_id=%s count=%s", sample_rows$issue, sample_rows$game_id, sample_rows$count),
+    collapse = "; "
+  )
+  sprintf("%s: %s. Sample: %s", prefix, summary, sample_text)
+}
+
+# Value-level consistency checks. Each check runs only when its columns are
+# present, and failures are reported as warnings: they usually point to errors
+# in ESPN's source data rather than in the parser.
+.espn_nba_value_issues <- function(games, team_box, player_box, completed_ids) {
+  has <- function(df, cols) !is.null(df) && nrow(df) > 0 && all(cols %in% names(df))
+  flag <- function(df, issue, detail, count = NA_integer_) {
+    if (nrow(df) == 0) {
+      return(NULL)
+    }
+    tibble::tibble(
+      issue = issue,
+      game_id = as.integer(df$game_id),
+      detail = detail,
+      count = as.integer(count),
+      severity = "warning"
+    )
+  }
+  out <- list()
+
+  played_games <- games
+  if (has(games, "game_id")) {
+    played_games <- games[as.integer(games$game_id) %in% completed_ids, , drop = FALSE]
+  }
+  team_box <- team_box[as.integer(team_box$game_id) %in% completed_ids, , drop = FALSE]
+
+  if (has(team_box, "team_home_away")) {
+    sides <- dplyr::summarise(
+      dplyr::group_by(team_box, game_id),
+      n_home = sum(team_home_away == "home", na.rm = TRUE),
+      n_away = sum(team_home_away == "away", na.rm = TRUE),
+      .groups = "drop"
+    )
+    bad <- dplyr::filter(sides, n_home != 1 | n_away != 1)
+    out$home_away <- flag(bad, "team_box_home_away", "Expected one home and one away row")
+  }
+
+  shot_cols <- c("team_score", "field_goals_made", "three_point_field_goals_made", "free_throws_made")
+  if (has(team_box, shot_cols)) {
+    implied <- 2 * team_box$field_goals_made + team_box$three_point_field_goals_made + team_box$free_throws_made
+    bad <- team_box[!is.na(implied) & !is.na(team_box$team_score) & implied != team_box$team_score, ]
+    out$points <- flag(bad, "team_points_mismatch", "team_score != 2*FGM + 3PM + FTM", bad$team_score)
+  }
+
+  made_attempted <- list(
+    c("field_goals_made", "field_goals_attempted"),
+    c("three_point_field_goals_made", "three_point_field_goals_attempted"),
+    c("free_throws_made", "free_throws_attempted"),
+    c("three_point_field_goals_made", "field_goals_made")
+  )
+  for (pair in made_attempted) {
+    if (has(team_box, pair)) {
+      bad <- team_box[(team_box[[pair[1]]] > team_box[[pair[2]]]) %in% TRUE, ]
+      out[[paste(pair, collapse = "_gt_")]] <- flag(bad, "team_made_gt_attempted", paste(pair[1], ">", pair[2]))
+    }
+  }
+
+  count_cols <- intersect(
+    c("team_score", "assists", "steals", "blocks", "turnovers", "total_rebounds", "fouls"),
+    names(team_box)
+  )
+  if (length(count_cols) > 0 && nrow(team_box) > 0) {
+    negative <- Reduce(`|`, lapply(count_cols, function(col) (team_box[[col]] < 0) %in% TRUE))
+    out$negative <- flag(team_box[negative, ], "team_negative_count", "Negative counting stat")
+  }
+
+  score_cols <- c("game_id", "home_team_score", "away_team_score")
+  if (has(played_games, score_cols) && has(team_box, c("team_home_away", "team_score"))) {
+    joined <- dplyr::inner_join(
+      team_box[, c("game_id", "team_home_away", "team_score")],
+      played_games[, score_cols],
+      by = "game_id"
+    )
+    expected <- ifelse(joined$team_home_away == "home", joined$home_team_score, joined$away_team_score)
+    bad <- joined[!is.na(expected) & expected != joined$team_score, ]
+    out$game_score <- flag(bad, "team_score_vs_games", "team_box score differs from games score")
+  }
+
+  if (has(played_games, score_cols)) {
+    bad <- played_games[(played_games$home_team_score == played_games$away_team_score) %in% TRUE, ]
+    out$tie <- flag(bad, "games_tied_score", "Completed game with tied score")
+  }
+
+  if (has(player_box, c("game_id", "team_id", "points")) && has(team_box, c("team_id", "team_score"))) {
+    player_pts <- dplyr::summarise(
+      dplyr::group_by(player_box, game_id, team_id),
+      player_points = sum(points, na.rm = TRUE),
+      .groups = "drop"
+    )
+    joined <- dplyr::inner_join(
+      player_pts,
+      team_box[, c("game_id", "team_id", "team_score")],
+      by = c("game_id", "team_id")
+    )
+    bad <- joined[(joined$player_points != joined$team_score) %in% TRUE, ]
+    out$player_points <- flag(bad, "player_points_vs_team", "Sum of player points != team_score", bad$player_points)
+  }
+
+  dplyr::bind_rows(c(list(.espn_nba_empty_issues()), unname(out)))
 }
 
 .espn_nba_missingness_report <- function(df) {
