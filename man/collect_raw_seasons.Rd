@@ -9,7 +9,8 @@ collect_raw_seasons(
   season_type = c("regular", "postseason"),
   raw_dir = "data/raw",
   overwrite = FALSE,
-  progress = TRUE
+  progress = TRUE,
+  pause_sec = 0.5
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ collect_raw_seasons(
 \item{overwrite}{Overwrite existing raw files}
 
 \item{progress}{Show a progress bar while collecting}
+
+\item{pause_sec}{Seconds to wait after each request}
 }
 \value{
 A list with per-season results and a combined tibble

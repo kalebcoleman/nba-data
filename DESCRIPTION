@@ -1,26 +1,22 @@
 Package: NBAData
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Collect, Parse, Validate, and Store ESPN NBA Game Data
 Version: 0.1.0
-Authors@R: c(
-    person(
-      "Jane", "Doe",
-      email = "jane@example.com",
-      role = c("aut", "cre")
-    )
-  )
-Description: More about what it does (maybe more than one line).
-    Continuation lines should be indented.
-License: What license is it under?
+Authors@R: 
+    person("Kaleb", "Coleman", email = "kalebcoleman123@gmail.com",
+           role = c("aut", "cre"))
+Description: Collects NBA game summaries from ESPN's public site API as raw
+    JSON, parses them into game, team box score, player box score, and betting
+    tables, validates row counts and keys, and writes the results to RDS, CSV,
+    or a versioned SQLite database.
+License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
 Depends:
     R (>= 4.1.0)
 Imports:
     dplyr,
     tidyr,
     httr,
-    httr2,
     jsonlite,
     janitor,
     lubridate,
@@ -31,6 +27,7 @@ Imports:
     DBI,
     RSQLite
 Suggests:
-    testthat,
+    testthat (>= 3.0.0),
     withr
-RoxygenNote: 7.3.3
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.1
