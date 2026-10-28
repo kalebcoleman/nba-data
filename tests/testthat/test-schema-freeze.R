@@ -47,3 +47,12 @@ testthat::test_that("parsed tables match frozen schema and keys", {
   testthat::expect_true(is.integer(tables$player_box$points))
   testthat::expect_true(is.integer(tables$team_box$team_score))
 })
+
+testthat::test_that("schema changes come with a version bump", {
+  # If this snapshot changes, bump NBA_SCHEMA_VERSION and add a migration
+  # that lists the columns it adds.
+  testthat::expect_snapshot_value(
+    list(version = NBA_SCHEMA_VERSION, schema = .espn_nba_schema()),
+    style = "deparse"
+  )
+})
